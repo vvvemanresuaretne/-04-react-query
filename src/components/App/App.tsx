@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import toast, { Toaster } from 'react-hot-toast';
 import SearchBar from '../SearchBar/SearchBar';
 import { fetchMovies } from '../../services/movieService';
@@ -26,8 +26,8 @@ function App() {
   } = useQuery({
     queryKey: ['movies', query, page],
     queryFn: () => fetchMovies(query, page),
-    enabled: !!query, // only run query if there's a search query
-    keepPreviousData: true, // for seamless pagination
+    enabled: !!query,
+    placeholderData: keepPreviousData,
     onError: (error) => {
       if (error instanceof Error) {
         toast.error(error.message);
@@ -36,6 +36,12 @@ function App() {
       }
     },
   });
+
+  useEffect(() => {
+    if (!isLoading && !isError && data?.results.length === 0) {
+      toast.error('No movies found for your request.');
+    }
+  }, [isLoading, isError, data]);
 
   const handleSearch = (newQuery: string) => {
     if (!newQuery.trim()) {
@@ -60,7 +66,6 @@ function App() {
       <Toaster />
       <SearchBar onSubmit={handleSearch} />
 
-      {/* Пагинація ПЕРЕД результатами */}
       {data?.total_pages > 1 && (
         <ReactPaginate
           pageCount={data.total_pages}
@@ -78,17 +83,13 @@ function App() {
       <main>
         {isLoading && <Loader />}
         {isError && !isLoading && <ErrorMessage />}
-        {!isLoading && !isError && data?.results.length === 0 && (
-          toast.error('No movies found for your request.')
-        )}
         {!isLoading && !isError && data?.results.length > 0 && (
           <MovieGrid movies={data.results} onSelect={handleMovieSelect} />
         )}
         {selectedMovie && (
           <MovieModal movie={selectedMovie} onClose={handleCloseModal} />
         )}
-
-        {isFetching && !isLoading && <Loader />} {/* Optional: show loading when fetching new page */}
+        {isFetching && !isLoading && <Loader />}
       </main>
     </>
   );
